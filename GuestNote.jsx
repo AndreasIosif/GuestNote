@@ -722,7 +722,7 @@ export default function GuestNoteApp() {
   }, []);
 
   /* ---------------- persistence ---------------- */
-  /* Real browser localStorage — persists per-device, survives reloads and
+  /* Real browser localStorage â€” persists per-device, survives reloads and
      reinstalls of the PWA on that same device (does not sync across devices;
      there is no backend server here). */
 
@@ -752,14 +752,22 @@ export default function GuestNoteApp() {
         storageSet("gn-events", e);
         storageSet("gn-audit", a);
       }
-      if (!ac || !ac.length) {
-        ac = [
-          { id: uid(), name: "Admin", username: "admin", password: "admin123", role: "Admin" },
-          { id: uid(), name: "Manager", username: "manager", password: "manager123", role: "Manager" },
-          { id: uid(), name: "Staff", username: "staff", password: "staff123", role: "Staff" },
-        ];
-        storageSet("gn-accounts", ac);
-      }
+      // Ensure the three standard accounts always exist, without ever touching
+      // ones that are already saved (so an edited password/name is never overwritten).
+      const defaults = [
+        { name: "Admin", username: "admin", password: "admin123", role: "Admin" },
+        { name: "Manager", username: "manager", password: "manager123", role: "Manager" },
+        { name: "Staff", username: "staff", password: "staff123", role: "Staff" },
+      ];
+      ac = ac || [];
+      let acChanged = false;
+      defaults.forEach((d) => {
+        if (!ac.some((a) => a.username === d.username)) {
+          ac.push({ id: uid(), ...d });
+          acChanged = true;
+        }
+      });
+      if (acChanged) storageSet("gn-accounts", ac);
       setGuests(g || []);
       setEvents(e || []);
       setAuditLog(a || []);
@@ -1873,7 +1881,7 @@ function AccountsScreen({ accounts, currentStaffId, onBack, onAdd, onUpdate, onD
               <div style={{ fontSize: 14, fontWeight: 600, color: COLORS.text, display: "flex", alignItems: "center", gap: 6 }}>
                 {acc.name}
                 {acc.id === currentStaffId && <span style={{ fontSize: 10.5, color: COLORS.gold, fontWeight: 700 }}>(You)</span>}
-                {PROTECTED_USERNAMES.includes(acc.username) && <span style={{ fontSize: 10.5, color: COLORS.muted, fontWeight: 600 }}>· Standard</span>}
+                {PROTECTED_USERNAMES.includes(acc.username) && <span style={{ fontSize: 10.5, color: COLORS.muted, fontWeight: 600 }}>Â· Standard</span>}
               </div>
               <div style={{ fontSize: 12, color: COLORS.muted, marginTop: 1 }}>@{acc.username} - {acc.role}</div>
             </div>
@@ -2140,4 +2148,910 @@ function GuestProfile({ guest, canEdit, canDelete, onBack, onEdit, onSave, onDel
             <Button variant="outline" style={{ flex: 1 }} onClick={() => setConfirmDelete(false)}>Cancel</Button>
             <Button variant="danger" style={{ flex: 1 }} icon={Trash2} onClick={onDelete}>Delete permanently</Button>
           </div>
-  
+        </Modal>
+      )}
+    </div>
+  );
+}
+
+function AuditRow({ entry }) {
+  return (
+    <div style={{ fontSize: 12.5, borderLeft: `2px solid ${COLORS.border}`, paddingLeft: 10 }}>
+      <div style={{ color: COLORS.text, fontWeight: 600 }}>{entry.action}</div>
+      <div style={{ color: COLORS.muted }}>{entry.detail}</div>
+      <div style={{ color: COLORS.muted, marginTop: 2 }}>{new Date(entry.timestamp).toLocaleString("en-GB")} - {entry.staff}</div>
+    </div>
+  );
+}
+
+function MutedLine({ text }) {
+  return <div style={{ fontSize: 13.5, color: COLORS.muted, fontStyle: "italic" }}>{text}</div>;
+}
+
+function SmallAdd({ onClick }) {
+  return (
+    <button onClick={onClick} style={{
+      background: "none", border: "none", color: COLORS.gold, cursor: "pointer", display: "flex",
+      alignItems: "center", gap: 3, fontSize: 12.5, fontWeight: 600, fontFamily: "Inter, sans-serif",
+    }}>
+      <Plus size={14} /> Add
+    </button>
+  );
+}
+
+/* ------------------------------ Add modals ------------------------------ */
+
+function AddAllergyModal({ onClose, onSave }) {
+  const [allergen, setAllergen] = useState("");
+  const [severity, setSeverity] = useState("Allergy");
+  const [notes, setNotes] = useState("");
+  return (
+    <Modal onClose={onClose}>
+      <ModalHeader title="Add allergy" icon={AlertTriangle} tone="red" onClose={onClose} />
+      <Field label="Allergen"><TextInput autoFocus value={allergen} onChange={(e) => setAllergen(e.target.value)} placeholder="e.g. Cheese" /></Field>
+      <Field label="Severity"><Select value={severity} onChange={(e) => setSeverity(e.target.value)} options={SEVERITIES} /></Field>
+      <Field label="Notes (optional)"><TextArea value={notes} onChange={(e) => setNotes(e.target.value)} placeholder="Anything the kitchen or floor staff should know" /></Field>
+      <div style={{ fontSize: 12, color: COLORS.muted, marginBottom: 16, lineHeight: 1.5 }}>
+        This assists staff but does not replace normal food-allergy verification and kitchen safety procedures.
+      </div>
+      <div style={{ display: "flex", gap: 10 }}>
+        <Button variant="outline" style={{ flex: 1 }} onClick={onClose}>Cancel</Button>
+        <Button variant="danger" style={{ flex: 1 }} disabled={!allergen.trim()} onClick={() => onSave({ allergen: allergen.trim(), severity, notes: notes.trim() })}>Save allergy</Button>
+      </div>
+    </Modal>
+  );
+}
+
+function QuickTextModal({ title, placeholder, onClose, onSave }) {
+  const [text, setText] = useState("");
+  return (
+    <Modal onClose={onClose}>
+      <ModalHeader title={title} icon={Plus} onClose={onClose} />
+      <Field label="Details"><TextArea autoFocus value={text} onChange={(e) => setText(e.target.value)} placeholder={placeholder} /></Field>
+      <div style={{ display: "flex", gap: 10 }}>
+        <Button variant="outline" style={{ flex: 1 }} onClick={onClose}>Cancel</Button>
+        <Button variant="primary" style={{ flex: 1 }} disabled={!text.trim()} onClick={() => onSave(text.trim())}>Save</Button>
+      </div>
+    </Modal>
+  );
+}
+
+function QuickUpdateModal({ guest, onClose, onSave }) {
+  const [text, setText] = useState("");
+  const [preview, setPreview] = useState(null);
+
+  const interpret = () => {
+    const all = [
+      ...guest.drinks.map((d) => ({ ...d, field: "drinks" })),
+      ...guest.preferences.map((d) => ({ ...d, field: "preferences" })),
+      ...guest.serviceNotes.map((d) => ({ ...d, field: "serviceNotes" })),
+    ];
+    const words = text.toLowerCase().split(/\s+/);
+    let bestMatch = null, bestScore = 0;
+    for (const item of all) {
+      const itemWords = item.text.toLowerCase().split(/\s+/);
+      const score = itemWords.filter((w) => words.includes(w)).length;
+      if (score > bestScore) { bestScore = score; bestMatch = item; }
+    }
+    if (bestMatch && bestScore > 0) {
+      setPreview({ mode: "replace", target: bestMatch, newText: text.trim() });
+    } else {
+      setPreview({ mode: "add", newText: text.trim() });
+    }
+  };
+
+  const confirm = () => {
+    if (!preview) return;
+    let next = { ...guest };
+    let detail;
+    if (preview.mode === "replace") {
+      const field = preview.target.field;
+      next[field] = guest[field].map((x) => (x.id === preview.target.id ? { ...x, text: preview.newText } : x));
+      detail = `${preview.target.text} -> ${preview.newText}`;
+    } else {
+      next.notes = [...guest.notes, { id: uid(), text: preview.newText }];
+      detail = preview.newText;
+    }
+    onSave(next, detail);
+  };
+
+  return (
+    <Modal onClose={onClose}>
+      <ModalHeader title="Quick update" icon={Sparkles} onClose={onClose} />
+      {!preview ? (
+        <>
+          <Field label="What's changed?">
+            <TextArea autoFocus value={text} onChange={(e) => setText(e.target.value)} placeholder="e.g. Gavin now prefers sparkling water instead of still." />
+          </Field>
+          <div style={{ display: "flex", gap: 10 }}>
+            <Button variant="outline" style={{ flex: 1 }} onClick={onClose}>Cancel</Button>
+            <Button variant="primary" style={{ flex: 1 }} disabled={!text.trim()} onClick={interpret}>Interpret</Button>
+          </div>
+        </>
+      ) : (
+        <>
+          {preview.mode === "replace" ? (
+            <div style={{ marginBottom: 16 }}>
+              <FieldLabel>Current</FieldLabel>
+              <div style={{ background: COLORS.surfaceAlt, borderRadius: 10, padding: "10px 13px", marginBottom: 10, fontSize: 14 }}>{preview.target.text}</div>
+              <FieldLabel>Change to</FieldLabel>
+              <div style={{ background: COLORS.goldSoft, borderRadius: 10, padding: "10px 13px", fontSize: 14, fontWeight: 600 }}>{preview.newText}</div>
+            </div>
+          ) : (
+            <div style={{ marginBottom: 16 }}>
+              <FieldLabel>Will be added as a note</FieldLabel>
+              <div style={{ background: COLORS.goldSoft, borderRadius: 10, padding: "10px 13px", fontSize: 14 }}>{preview.newText}</div>
+            </div>
+          )}
+          <div style={{ display: "flex", gap: 10 }}>
+            <Button variant="outline" style={{ flex: 1 }} onClick={() => setPreview(null)}>Edit</Button>
+            <Button variant="primary" style={{ flex: 1 }} icon={Check} onClick={confirm}>Confirm & Save</Button>
+          </div>
+        </>
+      )}
+    </Modal>
+  );
+}
+
+function ModalHeader({ title, icon: Icon, tone, onClose }) {
+  return (
+    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 18 }}>
+      <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+        {Icon && <Icon size={17} color={tone === "red" ? COLORS.red : COLORS.gold} />}
+        <h2 style={{ fontFamily: "Fraunces, serif", fontWeight: 500, fontSize: 19, margin: 0 }}>{title}</h2>
+      </div>
+      <button onClick={onClose} style={{ background: "none", border: "none", cursor: "pointer", color: COLORS.muted, padding: 4 }}>
+        <X size={19} />
+      </button>
+    </div>
+  );
+}
+
+function Field({ label, children }) {
+  return (
+    <div style={{ marginBottom: 14 }}>
+      <FieldLabel>{label}</FieldLabel>
+      {children}
+    </div>
+  );
+}
+function FieldLabel({ children }) {
+  return <label style={{ display: "block", fontSize: 11.5, fontFamily: "IBM Plex Mono, monospace", letterSpacing: 0.8, color: COLORS.muted, textTransform: "uppercase", marginBottom: 6 }}>{children}</label>;
+}
+
+/* --------------------------------- Add / Edit Guest --------------------------------- */
+
+function ListEditor({ label, items, setItems, placeholder }) {
+  const [draft, setDraft] = useState("");
+  const add = () => { if (draft.trim()) { setItems([...items, { id: uid(), text: draft.trim() }]); setDraft(""); } };
+  return (
+    <Field label={label}>
+      <div style={{ display: "flex", gap: 8, marginBottom: items.length ? 8 : 0 }}>
+        <TextInput value={draft} onChange={(e) => setDraft(e.target.value)} placeholder={placeholder}
+          onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); add(); } }} />
+        <Button variant="outline" size="sm" icon={Plus} onClick={add}>Add</Button>
+      </div>
+      <div style={{ display: "flex", flexWrap: "wrap", gap: 6 }}>
+        {items.map((it) => (
+          <Pill key={it.id}>
+            {it.text}
+            <X size={11} style={{ cursor: "pointer" }} onClick={() => setItems(items.filter((x) => x.id !== it.id))} />
+          </Pill>
+        ))}
+      </div>
+    </Field>
+  );
+}
+
+function AddEditGuest({ guest, onCancel, onSave, onDuplicateCheck, onOpenExisting }) {
+  const isEdit = !!guest;
+  const [title, setTitle] = useState(guest?.title || "Mr");
+  const [name, setName] = useState(guest?.name || "");
+  const [vip, setVip] = useState(guest?.vip || false);
+  const [allergies, setAllergies] = useState(guest?.allergies || []);
+  const [dietary, setDietary] = useState(guest?.dietary || []);
+  const [preferences, setPreferences] = useState(guest?.preferences || []);
+  const [dislikes, setDislikes] = useState(guest?.dislikes || []);
+  const [drinks, setDrinks] = useState(guest?.drinks || []);
+  const [serviceNotes, setServiceNotes] = useState(guest?.serviceNotes || []);
+  const [tablePreferences, setTablePreferences] = useState(guest?.tablePreferences || []);
+  const [notes, setNotes] = useState(guest?.notes || []);
+  const [tagsText, setTagsText] = useState((guest?.tags || []).join(", "));
+  const [dupWarning, setDupWarning] = useState(null);
+  const [newAllergen, setNewAllergen] = useState("");
+  const [newSeverity, setNewSeverity] = useState("Allergy");
+
+  const buildGuest = () => ({
+    id: guest?.id || uid(),
+    title, name: name.trim(), vip,
+    lastVisit: guest?.lastVisit || null,
+    allergies, dietary, preferences, dislikes, drinks, serviceNotes, tablePreferences, notes,
+    tags: tagsText.split(",").map((t) => t.trim().replace(/^#/, "")).filter(Boolean),
+    updatedAt: guest?.updatedAt || new Date().toISOString(),
+    updatedBy: guest?.updatedBy || "Staff",
+  });
+
+  const attemptSave = () => {
+    if (!name.trim()) return;
+    if (!isEdit) {
+      const dup = onDuplicateCheck(`${title} ${name}`, null);
+      if (dup) { setDupWarning(dup); return; }
+    }
+    onSave(buildGuest());
+  };
+
+  const addAllergyInline = () => {
+    if (!newAllergen.trim()) return;
+    setAllergies([...allergies, { id: uid(), allergen: newAllergen.trim(), severity: newSeverity, notes: "", verified: false, dateRecorded: todayISO(), recordedBy: "Staff" }]);
+    setNewAllergen("");
+  };
+
+  return (
+    <div style={{ padding: "14px 20px 60px" }}>
+      <button onClick={onCancel} style={{ background: "none", border: "none", color: COLORS.muted, display: "flex", alignItems: "center", gap: 4, cursor: "pointer", padding: "6px 0 14px", fontSize: 13.5 }}>
+        <ChevronLeft size={16} /> Cancel
+      </button>
+      <h2 style={{ fontFamily: "Fraunces, serif", fontWeight: 500, fontSize: 22, marginBottom: 18 }}>{isEdit ? "Edit guest" : "Add guest"}</h2>
+
+      <div style={{ display: "flex", gap: 10 }}>
+        <div style={{ width: 110 }}>
+          <Field label="Title"><Select value={title} onChange={(e) => setTitle(e.target.value)} options={["Mr", "Mrs", "Ms", "Miss", "Dr", "Professor", "Sir", "Dame", "Lord", "Lady", ""]} /></Field>
+        </div>
+        <div style={{ flex: 1 }}>
+          <Field label="Full name"><TextInput autoFocus value={name} onChange={(e) => setName(e.target.value)} placeholder="e.g. Gavin Henderson" /></Field>
+        </div>
+      </div>
+
+      <label style={{ display: "flex", alignItems: "center", gap: 9, marginBottom: 18, cursor: "pointer" }}>
+        <input type="checkbox" checked={vip} onChange={(e) => setVip(e.target.checked)} style={{ width: 17, height: 17 }} />
+        <span style={{ fontSize: 14, fontWeight: 500 }}>VIP guest</span>
+      </label>
+
+      <Field label="Allergies">
+        <div style={{ display: "flex", gap: 8, marginBottom: 8 }}>
+          <TextInput value={newAllergen} onChange={(e) => setNewAllergen(e.target.value)} placeholder="Allergen, e.g. Cheese" />
+          <Select value={newSeverity} onChange={(e) => setNewSeverity(e.target.value)} options={SEVERITIES} style={{ width: 130 }} />
+          <Button variant="danger" size="sm" icon={Plus} onClick={addAllergyInline}>Add</Button>
+        </div>
+        <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+          {allergies.map((a) => (
+            <div key={a.id} style={{ display: "flex", alignItems: "center", justifyContent: "space-between", background: COLORS.redSoft, border: `1px solid ${COLORS.redBorder}`, borderRadius: 10, padding: "8px 12px" }}>
+              <AllergyTag allergen={a.allergen} severity={a.severity} verified={a.verified} />
+              <X size={15} style={{ cursor: "pointer", color: COLORS.red }} onClick={() => setAllergies(allergies.filter((x) => x.id !== a.id))} />
+            </div>
+          ))}
+        </div>
+      </Field>
+
+      <ListEditor label="Dietary requirements" items={dietary} setItems={setDietary} placeholder="e.g. Vegetarian" />
+      <ListEditor label="Preferences" items={preferences} setItems={setPreferences} placeholder="e.g. Tabasco sauce" />
+      <ListEditor label="Dislikes" items={dislikes} setItems={setDislikes} placeholder="e.g. Mushrooms" />
+      <ListEditor label="Drinks" items={drinks} setItems={setDrinks} placeholder="e.g. Prefers red wine" />
+      <ListEditor label="Service preferences" items={serviceNotes} setItems={setServiceNotes} placeholder="e.g. Inform kitchen on arrival" />
+      <ListEditor label="Table & room preferences" items={tablePreferences} setItems={setTablePreferences} placeholder="e.g. Window table, away from kitchen pass" />
+      <ListEditor label="Notes" items={notes} setItems={setNotes} placeholder="General note" />
+
+      <Field label="Tags (comma separated)">
+        <TextInput value={tagsText} onChange={(e) => setTagsText(e.target.value)} placeholder="cheese-allergy, tabasco, vip" />
+      </Field>
+
+      {dupWarning && (
+        <div style={{ background: COLORS.amberSoft, border: `1px solid #E5CB92`, borderRadius: 12, padding: 14, marginBottom: 16 }}>
+          <div style={{ fontWeight: 700, fontSize: 13, color: "#7A5A18", marginBottom: 4 }}>POSSIBLE EXISTING GUEST</div>
+          <div style={{ fontSize: 14, marginBottom: 10 }}>{dupWarning.title} {dupWarning.name}</div>
+          <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+            <Button size="sm" variant="outline" onClick={() => onOpenExisting(dupWarning.id)}>Open Existing Guest</Button>
+            <Button size="sm" variant="primary" onClick={() => { setDupWarning(null); onSave(buildGuest()); }}>Create New Guest Anyway</Button>
+          </div>
+        </div>
+      )}
+
+      <div style={{ display: "flex", gap: 10, marginTop: 8 }}>
+        <Button variant="outline" style={{ flex: 1 }} onClick={onCancel}>Cancel</Button>
+        <Button variant="primary" style={{ flex: 1 }} disabled={!name.trim()} onClick={attemptSave}>Save guest</Button>
+      </div>
+    </div>
+  );
+}
+
+/* --------------------------------- Quick Add --------------------------------- */
+
+function QuickAdd({ onCancel, onSave, onDuplicateCheck, onOpenExisting, guests }) {
+  const [text, setText] = useState("");
+  const [parsed, setParsed] = useState(null);
+  const [dup, setDup] = useState(null);
+
+  const interpret = () => {
+    const r = parseQuickAdd(text);
+    setParsed(r);
+    if (r.name) {
+      const d = onDuplicateCheck(`${r.title} ${r.name}`.trim());
+      setDup(d || null);
+    }
+  };
+
+  const confirmSave = (mergeInto) => {
+    if (!parsed) return;
+    if (mergeInto) {
+      const g = mergeInto;
+      const next = {
+        ...g,
+        allergies: [...g.allergies, ...parsed.allergies
+          .filter((a) => !g.allergies.some((ex) => ex.allergen.toLowerCase() === a.toLowerCase()))
+          .map((a) => ({ id: uid(), allergen: a, severity: "Allergy", notes: "", verified: false, dateRecorded: todayISO(), recordedBy: "Staff" }))],
+        preferences: [...g.preferences, ...parsed.preferences.map((p) => ({ id: uid(), text: p }))],
+        drinks: [...g.drinks, ...parsed.drinks.map((p) => ({ id: uid(), text: p }))],
+        dietary: [...g.dietary, ...parsed.dietary.map((p) => ({ id: uid(), text: p }))],
+        serviceNotes: [...g.serviceNotes, ...parsed.serviceNotes.map((p) => ({ id: uid(), text: p }))],
+        notes: [...g.notes, ...parsed.leftover.map((p) => ({ id: uid(), text: p }))],
+      };
+      onSave(next, false);
+      return;
+    }
+    const newGuest = {
+      id: uid(),
+      title: parsed.title || "",
+      name: parsed.name || "Unnamed guest",
+      vip: false,
+      lastVisit: todayISO(),
+      allergies: parsed.allergies.map((a) => ({ id: uid(), allergen: a, severity: "Allergy", notes: "", verified: false, dateRecorded: todayISO(), recordedBy: "Staff" })),
+      dietary: parsed.dietary.map((p) => ({ id: uid(), text: p })),
+      preferences: parsed.preferences.map((p) => ({ id: uid(), text: p })),
+      dislikes: [],
+      drinks: parsed.drinks.map((p) => ({ id: uid(), text: p })),
+      serviceNotes: parsed.serviceNotes.map((p) => ({ id: uid(), text: p })),
+      notes: parsed.leftover.map((p) => ({ id: uid(), text: p })),
+      tags: parsed.allergies.map((a) => `${a.toLowerCase().replace(/\s+/g, "-")}-allergy`),
+      updatedAt: new Date().toISOString(), updatedBy: "Staff",
+    };
+    onSave(newGuest, true);
+  };
+
+  return (
+    <div style={{ padding: "14px 20px 60px" }}>
+      <button onClick={onCancel} style={{ background: "none", border: "none", color: COLORS.muted, display: "flex", alignItems: "center", gap: 4, cursor: "pointer", padding: "6px 0 14px", fontSize: 13.5 }}>
+        <ChevronLeft size={16} /> Cancel
+      </button>
+      <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 6 }}>
+        <Sparkles size={18} color={COLORS.gold} />
+        <h2 style={{ fontFamily: "Fraunces, serif", fontWeight: 500, fontSize: 22, margin: 0 }}>Quick Add</h2>
+      </div>
+      <p style={{ color: COLORS.muted, fontSize: 13.5, marginBottom: 16, lineHeight: 1.5 }}>
+        Describe the guest in plain language. Review what GuestNote understood before anything is saved.
+      </p>
+
+      {!parsed ? (
+        <>
+          <TextArea
+            autoFocus rows={5} value={text} onChange={(e) => setText(e.target.value)}
+            placeholder='e.g. "Professor Gavin Henderson has a cheese allergy and likes having Tabasco sauce ready on the table when he arrives."'
+            style={{ minHeight: 120, marginBottom: 16 }}
+          />
+          <Button variant="gold" style={{ width: "100%" }} icon={Sparkles} disabled={!text.trim()} onClick={interpret}>
+            Interpret
+          </Button>
+        </>
+      ) : (
+        <>
+          <div style={{ background: COLORS.surface, border: `1px solid ${COLORS.border}`, borderRadius: 16, padding: 18, marginBottom: 16 }}>
+            <div style={{ fontSize: 12, color: COLORS.muted, fontFamily: "IBM Plex Mono, monospace", letterSpacing: 0.8, textTransform: "uppercase", marginBottom: 10 }}>
+              I understood
+            </div>
+            <div style={{ fontFamily: "Fraunces, serif", fontSize: 18, marginBottom: 12 }}>
+              Guest: {parsed.title} {parsed.name || <span style={{ color: COLORS.red }}>Not detected - please edit</span>}
+            </div>
+            {parsed.allergies.map((a, i) => (
+              <ParsedLine key={i} icon={AlertTriangle} tone="red" label="Allergy" text={a} />
+            ))}
+            {parsed.dietary.map((a, i) => <ParsedLine key={i} icon={Leaf} tone="green" label="Dietary" text={a} />)}
+            {parsed.preferences.map((a, i) => <ParsedLine key={i} icon={Heart} tone="gold" label="Preference" text={a} />)}
+            {parsed.drinks.map((a, i) => <ParsedLine key={i} icon={Wine} tone="gold" label="Drink" text={a} />)}
+            {parsed.serviceNotes.map((a, i) => <ParsedLine key={i} icon={Armchair} tone="gold" label="Service instruction" text={a} />)}
+            {parsed.leftover.map((a, i) => <ParsedLine key={i} icon={StickyNote} label="Note" text={a} />)}
+            {!parsed.allergies.length && !parsed.preferences.length && !parsed.drinks.length && !parsed.serviceNotes.length && !parsed.dietary.length && !parsed.leftover.length && (
+              <MutedLine text="No structured details detected beyond the name - you can add details after saving." />
+            )}
+          </div>
+
+          {dup && (
+            <div style={{ background: COLORS.amberSoft, border: `1px solid #E5CB92`, borderRadius: 12, padding: 14, marginBottom: 16 }}>
+              <div style={{ fontWeight: 700, fontSize: 13, color: "#7A5A18", marginBottom: 4 }}>POSSIBLE EXISTING GUEST</div>
+              <div style={{ fontSize: 14, marginBottom: 10 }}>{dup.title} {dup.name}</div>
+              {parsed.allergies.length > 0 && dup.allergies.length > 0 && (
+                <div style={{ fontSize: 12.5, color: "#7A5A18", marginBottom: 10 }}>
+                  This guest already has allergy information on file. It will not be overwritten - new allergies are added alongside it.
+                </div>
+              )}
+              <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+                <Button size="sm" variant="outline" onClick={() => onOpenExisting(dup.id)}>Open Existing Guest</Button>
+                <Button size="sm" variant="primary" onClick={() => confirmSave(dup)}>Merge Into Existing</Button>
+                <Button size="sm" variant="ghost" onClick={() => setDup(null)}>Create New Instead</Button>
+              </div>
+            </div>
+          )}
+
+          {!dup && (
+            <div style={{ display: "flex", gap: 10 }}>
+              <Button variant="outline" style={{ flex: 1 }} onClick={() => setParsed(null)}>Edit</Button>
+              <Button variant="gold" style={{ flex: 1 }} icon={Check} disabled={!parsed.name} onClick={() => confirmSave(null)}>Confirm & Save</Button>
+            </div>
+          )}
+        </>
+      )}
+    </div>
+  );
+}
+
+function ParsedLine({ icon: Icon, tone, label, text }) {
+  const color = tone === "red" ? COLORS.red : tone === "green" ? COLORS.green : tone === "gold" ? "#7A5C22" : COLORS.muted;
+  return (
+    <div style={{ display: "flex", alignItems: "center", gap: 8, padding: "7px 0", fontSize: 14.5 }}>
+      <Icon size={14} color={color} />
+      <span style={{ color: COLORS.muted, fontSize: 12.5 }}>{label}:</span>
+      <span style={{ fontWeight: 600, color }}>{text}</span>
+    </div>
+  );
+}
+
+/* --------------------------------- Events --------------------------------- */
+
+function EventsScreen({ events, guests, onBack, onOpenEvent, onCreateEvent }) {
+  const [creating, setCreating] = useState(false);
+  const [name, setName] = useState("Dinner Service");
+  const [date, setDate] = useState(todayISO());
+
+  const create = () => {
+    onCreateEvent({ id: uid(), name: name.trim() || "Event", date, guests: [] });
+    setCreating(false);
+    setName("Dinner Service");
+    setDate(todayISO());
+  };
+
+  return (
+    <div style={{ padding: "14px 20px 60px" }}>
+      <button onClick={onBack} style={{ background: "none", border: "none", color: COLORS.muted, display: "flex", alignItems: "center", gap: 4, cursor: "pointer", padding: "6px 0 14px", fontSize: 13.5 }}>
+        <ChevronLeft size={16} /> Back
+      </button>
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 16 }}>
+        <h2 style={{ fontFamily: "Fraunces, serif", fontWeight: 500, fontSize: 22, margin: 0 }}>Events</h2>
+        <Button size="sm" variant="gold" icon={Plus} onClick={() => setCreating(true)}>New event</Button>
+      </div>
+
+      {creating && (
+        <div style={{ background: COLORS.surface, border: `1px solid ${COLORS.border}`, borderRadius: 14, padding: 16, marginBottom: 16 }}>
+          <Field label="Event name"><TextInput autoFocus value={name} onChange={(e) => setName(e.target.value)} /></Field>
+          <Field label="Date"><TextInput type="date" value={date} onChange={(e) => setDate(e.target.value)} /></Field>
+          <div style={{ display: "flex", gap: 8 }}>
+            <Button variant="outline" size="sm" style={{ flex: 1 }} onClick={() => setCreating(false)}>Cancel</Button>
+            <Button variant="primary" size="sm" style={{ flex: 1 }} onClick={create}>Create</Button>
+          </div>
+        </div>
+      )}
+
+      <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+        {events.length === 0 && <MutedLine text="No events yet." />}
+        {events
+          .slice()
+          .sort((a, b) => (a.date < b.date ? 1 : -1))
+          .map((ev) => {
+            const attendees = ev.guests.map((x) => guests.find((g) => g.id === x.guestId)).filter(Boolean);
+            const allergyCount = attendees.filter((g) => g.allergies.length).length;
+            return (
+              <div key={ev.id} onClick={() => onOpenEvent(ev.id)} style={{
+                background: COLORS.surface, border: `1px solid ${COLORS.border}`, borderRadius: 16, padding: "14px 16px", cursor: "pointer",
+              }}>
+                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                  <div>
+                    <div style={{ fontFamily: "Fraunces, serif", fontSize: 17, fontWeight: 500 }}>{ev.name}</div>
+                    <div style={{ fontSize: 12.5, color: COLORS.muted, marginTop: 3 }}>
+                      {formatDate(ev.date)} - {attendees.length} guests
+                      {allergyCount > 0 && <span style={{ color: COLORS.red }}> - {allergyCount} with allergies</span>}
+                    </div>
+                  </div>
+                  <ChevronRight size={16} color={COLORS.muted} />
+                </div>
+              </div>
+            );
+          })}
+      </div>
+    </div>
+  );
+}
+
+function EventDetail({ event, guests, onBack, onUpdate, onOpenGuest, onBriefing }) {
+  const [adding, setAdding] = useState(event.guests.length === 0);
+  const [search, setSearch] = useState("");
+
+  const attendees = event.guests.map((x) => ({ ...x, guest: guests.find((g) => g.id === x.guestId) })).filter((x) => x.guest);
+  const allergyCount = attendees.filter((x) => x.guest.allergies.length).length;
+  const dietaryCount = attendees.filter((x) => x.guest.dietary.length).length;
+  const prefCount = attendees.reduce((s, x) => s + x.guest.preferences.length, 0);
+
+  const available = guests.filter((g) => !event.guests.some((x) => x.guestId === g.id) && `${g.title} ${g.name}`.toLowerCase().includes(search.toLowerCase()));
+
+  const addGuestToEvent = (g) => {
+    onUpdate({ ...event, guests: [...event.guests, { guestId: g.id, table: event.guests.length + 1 }] });
+  };
+  const removeGuest = (guestId) => onUpdate({ ...event, guests: event.guests.filter((x) => x.guestId !== guestId) });
+  const setTable = (guestId, table) => onUpdate({ ...event, guests: event.guests.map((x) => (x.guestId === guestId ? { ...x, table } : x)) });
+
+  return (
+    <div style={{ padding: "14px 20px 60px" }}>
+      <button onClick={onBack} style={{ background: "none", border: "none", color: COLORS.muted, display: "flex", alignItems: "center", gap: 4, cursor: "pointer", padding: "6px 0 14px", fontSize: 13.5 }}>
+        <ChevronLeft size={16} /> Events
+      </button>
+      <h2 style={{ fontFamily: "Fraunces, serif", fontWeight: 500, fontSize: 22, margin: "0 0 4px" }}>{event.name}</h2>
+      <div style={{ color: COLORS.muted, fontSize: 13.5, marginBottom: 16 }}>{formatDate(event.date)} - {attendees.length} guests</div>
+
+      <div style={{ display: "flex", gap: 8, marginBottom: 18, flexWrap: "wrap" }}>
+        <Pill tone="red"><AlertTriangle size={11} /> {allergyCount} with allergies</Pill>
+        <Pill tone="green"><Leaf size={11} /> {dietaryCount} dietary requirements</Pill>
+        <Pill tone="gold"><Heart size={11} /> {prefCount} known preferences</Pill>
+      </div>
+
+      <Button variant="gold" style={{ width: "100%", marginBottom: 18 }} icon={ShieldAlert} onClick={onBriefing}>
+        Open Service Briefing
+      </Button>
+
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 10 }}>
+        <h3 style={{ fontFamily: "IBM Plex Mono, monospace", fontSize: 11.5, letterSpacing: 1.2, textTransform: "uppercase", color: COLORS.muted, margin: 0 }}>Guest list</h3>
+      </div>
+
+      <Button
+        variant={adding ? "outline" : "gold"} style={{ width: "100%", marginBottom: 14 }}
+        icon={UserPlus} onClick={() => setAdding((a) => !a)}
+      >
+        {adding ? "Close" : "Add Guests"}
+      </Button>
+
+      {adding && (
+        <div style={{ marginBottom: 12 }}>
+          <TextInput placeholder="Search guests to add..." value={search} onChange={(e) => setSearch(e.target.value)} style={{ marginBottom: 8 }} autoFocus />
+          <div style={{ maxHeight: 220, overflowY: "auto", border: `1px solid ${COLORS.border}`, borderRadius: 12 }}>
+            {available.slice(0, 20).map((g) => (
+              <div key={g.id} onClick={() => addGuestToEvent(g)} style={{ padding: "10px 12px", borderBottom: `1px solid ${COLORS.border}`, cursor: "pointer", fontSize: 14, display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                <span>{g.title} {g.name}</span>
+                <Plus size={14} color={COLORS.gold} />
+              </div>
+            ))}
+            {available.length === 0 && <div style={{ padding: 12, fontSize: 13, color: COLORS.muted }}>No matches</div>}
+          </div>
+        </div>
+      )}
+
+      <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+        {attendees.sort((a, b) => (a.table || 0) - (b.table || 0)).map((x) => (
+          <div key={x.guestId} style={{ background: COLORS.surface, border: `1px solid ${COLORS.border}`, borderRadius: 14, padding: "10px 12px", display: "flex", alignItems: "center", gap: 10 }}>
+            <input
+              type="number" min={1} value={x.table || ""} onChange={(e) => setTable(x.guestId, Number(e.target.value))}
+              style={{ width: 44, padding: "6px 4px", textAlign: "center", borderRadius: 8, border: `1px solid ${COLORS.border}`, fontSize: 13 }}
+            />
+            <div style={{ flex: 1, cursor: "pointer" }} onClick={() => onOpenGuest(x.guestId)}>
+              <div style={{ fontSize: 14.5, fontWeight: 500 }}>{x.guest.title} {x.guest.name}</div>
+              {x.guest.allergies.length > 0 && (
+                <div style={{ marginTop: 3 }}><AllergyTag allergen={x.guest.allergies[0].allergen} severity={x.guest.allergies[0].severity} verified={x.guest.allergies[0].verified} /></div>
+              )}
+            </div>
+            <X size={16} color={COLORS.muted} style={{ cursor: "pointer" }} onClick={() => removeGuest(x.guestId)} />
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+/* --------------------------------- Service Briefing --------------------------------- */
+
+function ServiceBriefing({ event, guests, onBack }) {
+  const attendees = event.guests
+    .map((x) => ({ ...x, guest: guests.find((g) => g.id === x.guestId) }))
+    .filter((x) => x.guest)
+    .sort((a, b) => {
+      const aAllergy = a.guest.allergies.length ? 0 : 1;
+      const bAllergy = b.guest.allergies.length ? 0 : 1;
+      if (aAllergy !== bAllergy) return aAllergy - bAllergy;
+      return (a.table || 0) - (b.table || 0);
+    });
+
+  const exportPDF = () => {
+    const html = `
+      <html>
+        <head>
+          <title>${event.name} - ${formatDate(event.date)}</title>
+          <style>
+            body { font-family: Georgia, serif; margin: 20px; line-height: 1.6; color: #2a2620; }
+            h1 { font-size: 28px; margin: 0 0 4px; }
+            .meta { color: #8b8172; font-size: 14px; margin-bottom: 20px; border-bottom: 1px solid #e7dfcf; padding-bottom: 12px; }
+            .guest { margin-bottom: 20px; padding: 14px; border: 1px solid #e7dfcf; border-radius: 8px; page-break-inside: avoid; }
+            .guest.allergy { background: #fbeae6; border-color: #e9baaf; }
+            .table { font-size: 11px; color: #8b8172; font-weight: bold; margin-bottom: 4px; text-transform: uppercase; }
+            .name { font-size: 18px; font-weight: bold; margin-bottom: 8px; }
+            .allergy { color: #9c3a2e; font-weight: bold; margin-bottom: 6px; }
+            .dietary { color: #4c7a5e; margin-bottom: 3px; }
+            .note { margin-bottom: 3px; }
+            .footer { margin-top: 30px; font-size: 12px; color: #8b8172; border-top: 1px solid #e7dfcf; padding-top: 14px; }
+          </style>
+        </head>
+        <body>
+          <h1>${event.name}</h1>
+          <div class="meta">${formatDate(event.date)} - ${attendees.length} guests - Safety First</div>
+          ${attendees.map((x) => {
+            const g = x.guest;
+            const hasAllergy = g.allergies.length > 0;
+            return `
+              <div class="guest ${hasAllergy ? 'allergy' : ''}">
+                <div class="table">Table ${x.table || '-'}</div>
+                <div class="name">${g.title} ${g.name}${g.vip ? ' (VIP)' : ''}</div>
+                ${g.allergies.map((a) => `<div class="allergy">ALLERGY: ${a.allergen.toUpperCase()} (${a.severity})</div>`).join('')}
+                ${g.dietary.map((d) => `<div class="dietary">DIETARY: ${d.text}</div>`).join('')}
+                ${g.serviceNotes.map((s) => `<div class="note">NOTE: ${s.text}</div>`).join('')}
+                ${g.preferences.map((p) => `<div class="note">PREFERENCE: ${p.text}</div>`).join('')}
+                ${g.drinks.map((d) => `<div class="note">DRINK: ${d.text}</div>`).join('')}
+              </div>
+            `;
+          }).join('')}
+          <div class="footer">
+            This briefing assists service staff. It does not replace standard kitchen allergen verification and safety procedures.
+            Always confirm severe allergies directly with the guest and kitchen.
+          </div>
+        </body>
+      </html>
+    `;
+    const blob = new Blob([html], { type: 'text/html' });
+    const url = URL.createObjectURL(blob);
+    const w = window.open(url);
+    if (w) { setTimeout(() => w.print(), 500); } else { alert('Could not open print dialog'); }
+  };
+
+  return (
+    <div style={{ padding: "14px 20px 60px" }}>
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 14 }}>
+        <button onClick={onBack} style={{ background: "none", border: "none", color: COLORS.muted, display: "flex", alignItems: "center", gap: 4, cursor: "pointer", padding: "6px 0", fontSize: 13.5 }}>
+          <ChevronLeft size={16} /> Back
+        </button>
+        <Button size="sm" variant="outline" icon={Download} onClick={exportPDF}>Export PDF</Button>
+      </div>
+      <div style={{ marginBottom: 18 }}>
+        <div style={{ fontSize: 11.5, fontFamily: "IBM Plex Mono, monospace", letterSpacing: 1.4, color: COLORS.gold, textTransform: "uppercase" }}>Service Briefing</div>
+        <h2 style={{ fontFamily: "Fraunces, serif", fontWeight: 500, fontSize: 24, margin: "4px 0" }}>{event.name}</h2>
+        <div style={{ color: COLORS.muted, fontSize: 13.5 }}>{formatDate(event.date)} - {attendees.length} guests - safety first</div>
+      </div>
+
+      <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+        {attendees.map((x) => {
+          const g = x.guest;
+          const hasAllergy = g.allergies.length > 0;
+          return (
+            <div key={x.guestId} style={{
+              background: hasAllergy ? COLORS.redSoft : COLORS.surface,
+              border: `1.5px solid ${hasAllergy ? COLORS.redBorder : COLORS.border}`,
+              borderRadius: 16, padding: "14px 16px",
+            }}>
+              <div style={{ fontSize: 11, fontFamily: "IBM Plex Mono, monospace", letterSpacing: 1, color: COLORS.muted, textTransform: "uppercase", marginBottom: 4 }}>
+                Table {x.table || "-"}
+              </div>
+              <div style={{ fontFamily: "Fraunces, serif", fontSize: 17.5, fontWeight: 500, marginBottom: 6 }}>{g.title} {g.name}{g.vip && <Star size={12} color={COLORS.gold} fill={COLORS.gold} style={{ marginLeft: 6, marginBottom: 1 }} />}</div>
+              {g.allergies.map((a) => (
+                <div key={a.id} style={{ marginBottom: 5 }}><AllergyTag allergen={a.allergen} severity={a.severity} verified={a.verified} /></div>
+              ))}
+              {g.dietary.map((d) => (
+                <div key={d.id} style={{ fontSize: 13.5, color: COLORS.green, marginBottom: 3, display: "flex", alignItems: "center", gap: 6 }}><Leaf size={13} /> {d.text}</div>
+              ))}
+              {g.serviceNotes.map((s) => (
+                <div key={s.id} style={{ fontSize: 13.5, marginBottom: 3, display: "flex", alignItems: "center", gap: 6 }}><ChevronRight size={13} color={COLORS.muted} /> {s.text}</div>
+              ))}
+              {g.tablePreferences.map((s) => (
+                <div key={s.id} style={{ fontSize: 13.5, marginBottom: 3, display: "flex", alignItems: "center", gap: 6 }}><Armchair size={13} color={COLORS.muted} /> {s.text}</div>
+              ))}
+              {g.preferences.map((p) => (
+                <div key={p.id} style={{ fontSize: 13.5, marginBottom: 3, display: "flex", alignItems: "center", gap: 6 }}><Heart size={13} color={COLORS.red} /> {p.text}</div>
+              ))}
+              {g.drinks.map((d) => (
+                <div key={d.id} style={{ fontSize: 13.5, marginBottom: 3, display: "flex", alignItems: "center", gap: 6 }}><Wine size={13} color={COLORS.muted} /> {d.text}</div>
+              ))}
+            </div>
+          );
+        })}
+      </div>
+
+      <div style={{ marginTop: 20, fontSize: 12, color: COLORS.muted, lineHeight: 1.6, borderTop: `1px solid ${COLORS.border}`, paddingTop: 14 }}>
+        This briefing assists service staff. It does not replace standard kitchen allergen verification and safety procedures - always confirm severe allergies directly with the guest and kitchen.
+      </div>
+    </div>
+  );
+}
+
+/* --------------------------------- Audit log screen --------------------------------- */
+
+function AuditLogScreen({ auditLog, onBack }) {
+  return (
+    <div style={{ padding: "14px 20px 60px" }}>
+      <button onClick={onBack} style={{ background: "none", border: "none", color: COLORS.muted, display: "flex", alignItems: "center", gap: 4, cursor: "pointer", padding: "6px 0 14px", fontSize: 13.5 }}>
+        <ChevronLeft size={16} /> Back
+      </button>
+      <h2 style={{ fontFamily: "Fraunces, serif", fontWeight: 500, fontSize: 22, marginBottom: 4 }}>Audit history</h2>
+      <p style={{ color: COLORS.muted, fontSize: 13, marginBottom: 18 }}>A record of changes across all guests, most recent first.</p>
+      <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+        {auditLog.length === 0 && <MutedLine text="No activity yet." />}
+        {auditLog
+          .slice()
+          .sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp))
+          .map((entry) => (
+            <div key={entry.id} style={{ background: COLORS.surface, border: `1px solid ${COLORS.border}`, borderRadius: 14, padding: "12px 14px" }}>
+              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline" }}>
+                <span style={{ fontWeight: 600, fontSize: 14 }}>{entry.guestName}</span>
+                <span style={{ fontSize: 11.5, color: COLORS.muted }}>{timeAgo(entry.timestamp)}</span>
+              </div>
+              <div style={{ fontSize: 13, color: COLORS.gold, fontWeight: 600, marginTop: 2 }}>{entry.action}</div>
+              <div style={{ fontSize: 13, color: COLORS.muted, marginTop: 2 }}>{entry.detail}</div>
+              <div style={{ fontSize: 11.5, color: COLORS.muted, marginTop: 6 }}>{new Date(entry.timestamp).toLocaleString("en-GB")} - {entry.staff}</div>
+            </div>
+          ))}
+      </div>
+    </div>
+  );
+}
+
+/* --------------------------------- Allergy Heatmap --------------------------------- */
+
+function AllergyHeatmapScreen({ guests, onBack }) {
+  const allergyCount = {};
+  guests.forEach((g) => {
+    g.allergies.forEach((a) => {
+      const allergen = a.allergen.toLowerCase();
+      allergyCount[allergen] = (allergyCount[allergen] || 0) + 1;
+    });
+  });
+
+  const sorted = Object.entries(allergyCount)
+    .map(([allergen, count]) => ({ allergen: allergen.charAt(0).toUpperCase() + allergen.slice(1), count }))
+    .sort((a, b) => b.count - a.count);
+
+  const maxCount = sorted.length > 0 ? sorted[0].count : 0;
+
+  return (
+    <div style={{ padding: "14px 20px 60px" }}>
+      <button onClick={onBack} style={{ background: "none", border: "none", color: COLORS.muted, display: "flex", alignItems: "center", gap: 4, cursor: "pointer", padding: "6px 0 14px", fontSize: 13.5 }}>
+        <ChevronLeft size={16} /> Back
+      </button>
+      <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 4 }}>
+        <AlertTriangle size={18} color={COLORS.red} />
+        <h2 style={{ fontFamily: "Fraunces, serif", fontWeight: 500, fontSize: 22, margin: 0 }}>Allergy Heatmap</h2>
+      </div>
+      <p style={{ color: COLORS.muted, fontSize: 13, marginBottom: 18 }}>Most common allergies across your guest base.</p>
+
+      {sorted.length === 0 ? (
+        <MutedLine text="No allergies recorded." />
+      ) : (
+        <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
+          {sorted.map((item) => {
+            const percentage = (item.count / maxCount) * 100;
+            return (
+              <div key={item.allergen}>
+                <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 6 }}>
+                  <span style={{ fontWeight: 600, fontSize: 14 }}>{item.allergen}</span>
+                  <span style={{ fontSize: 13, color: COLORS.muted }}>{item.count} guest{item.count !== 1 ? 's' : ''}</span>
+                </div>
+                <div style={{ background: COLORS.border, borderRadius: 8, height: 16, overflow: "hidden" }}>
+                  <div style={{ background: COLORS.red, height: "100%", width: `${percentage}%`, transition: "width .3s ease" }} />
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      )}
+
+      <div style={{ marginTop: 30, fontSize: 12, color: COLORS.muted, lineHeight: 1.6, borderTop: `1px solid ${COLORS.border}`, paddingTop: 14 }}>
+        This heatmap shows the most common recorded allergies. Use this data to brief your kitchen team on seasonal patterns or to identify common allergens to be especially cautious about.
+      </div>
+    </div>
+  );
+}
+
+/* --------------------------------- CSV Import --------------------------------- */
+
+function CSVImportScreen({ guests, onImport, onBack }) {
+  const [csvText, setCsvText] = useState("");
+  const [preview, setPreview] = useState(null);
+  const [error, setError] = useState(null);
+
+  const parseCSV = () => {
+    setError(null);
+    if (!csvText.trim()) { setError("Please paste or upload CSV data."); return; }
+    
+    const lines = csvText.trim().split("\n");
+    if (lines.length < 2) { setError("CSV must have at least a header row and one data row."); return; }
+
+    const headers = lines[0].toLowerCase().split(",").map((h) => h.trim());
+    const nameIdx = headers.indexOf("name") >= 0 ? headers.indexOf("name") : 0;
+    const titleIdx = headers.indexOf("title");
+    const allergyIdx = headers.indexOf("allergy");
+    const dietaryIdx = headers.indexOf("dietary");
+    const preferencesIdx = headers.indexOf("preference") || headers.indexOf("preferences");
+
+    const newGuests = [];
+    for (let i = 1; i < lines.length; i++) {
+      const cells = lines[i].split(",").map((c) => c.trim()).filter((c) => c);
+      if (cells.length === 0) continue;
+      
+      const name = cells[nameIdx] || "Unnamed";
+      if (guests.some((g) => g.name.toLowerCase() === name.toLowerCase())) continue;
+
+      // Process dietary items and convert intolerances
+      const dietaryItems = dietaryIdx >= 0 && cells[dietaryIdx] ? cells[dietaryIdx].split(";").map((d) => d.trim()).filter(Boolean) : [];
+      const intolerances = [];
+      const pureDietary = [];
+      
+      for (const item of dietaryItems) {
+        const intolerance = convertDietaryToIntolerance(item);
+        if (intolerance) {
+          intolerances.push(intolerance);
+        } else {
+          pureDietary.push(item);
+        }
+      }
+
+      newGuests.push(makeGuest({
+        name,
+        title: titleIdx >= 0 ? cells[titleIdx] : "",
+        allergies: [
+          ...(allergyIdx >= 0 && cells[allergyIdx] ? [{ allergen: cells[allergyIdx], severity: "Allergy", notes: "" }] : []),
+          ...intolerances
+        ],
+        dietary: pureDietary,
+        preferences: preferencesIdx >= 0 && cells[preferencesIdx] ? cells[preferencesIdx].split(";").map((p) => p.trim()).filter(Boolean) : [],
+      }));
+    }
+
+    if (newGuests.length === 0) { setError("No new valid guests found (may have duplicates with existing records)."); return; }
+    setPreview(newGuests);
+  };
+
+  return (
+    <div style={{ padding: "14px 20px 60px" }}>
+      <button onClick={onBack} style={{ background: "none", border: "none", color: COLORS.muted, display: "flex", alignItems: "center", gap: 4, cursor: "pointer", padding: "6px 0 14px", fontSize: 13.5 }}>
+        <ChevronLeft size={16} /> Back
+      </button>
+      <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 4 }}>
+        <Upload size={18} color={COLORS.gold} />
+        <h2 style={{ fontFamily: "Fraunces, serif", fontWeight: 500, fontSize: 22, margin: 0 }}>Import guests from CSV</h2>
+      </div>
+      <p style={{ color: COLORS.muted, fontSize: 13, marginBottom: 18 }}>Paste CSV with columns: name, title, allergy, dietary, preference. Use semicolons to separate multiple values.</p>
+
+      {!preview ? (
+        <>
+          <Field label="CSV data">
+            <TextArea rows={8} value={csvText} onChange={(e) => setCsvText(e.target.value)} placeholder="name,title,allergy,dietary&#10;John Doe,Mr,Cheese,Vegetarian" />
+          </Field>
+          {error && <div style={{ color: COLORS.red, fontSize: 13, marginBottom: 14, display: "flex", alignItems: "center", gap: 6 }}><AlertTriangle size={13} /> {error}</div>}
+          <Button variant="gold" style={{ width: "100%" }} onClick={parseCSV}>Parse CSV</Button>
+        </>
+      ) : (
+        <>
+          <div style={{ marginBottom: 16 }}>
+            <div style={{ fontSize: 12.5, color: COLORS.muted, marginBottom: 8 }}>Ready to import {preview.length} guests:</div>
+            <div style={{ maxHeight: 200, overflowY: "auto", display: "flex", flexDirection: "column", gap: 6, borderRadius: 12, border: `1px solid ${COLORS.border}`, padding: 10 }}>
+              {preview.map((g) => (
+                <div key={g.id} style={{ fontSize: 12.5, padding: "6px 8px", background: COLORS.surfaceAlt, borderRadius: 8 }}>
+                  <strong>{g.title} {g.name}</strong>
+                  {g.allergies.length > 0 && <div style={{ color: COLORS.red, display: "flex", alignItems: "center", gap: 5 }}><AlertTriangle size={12} /> {g.allergies.map((a) => a.allergen).join(", ")}</div>}
+                </div>
+              ))}
+            </div>
+          </div>
+          <div style={{ display: "flex", gap: 10 }}>
+            <Button variant="outline" style={{ flex: 1 }} onClick={() => { setPreview(null); setCsvText(""); }}>Edit</Button>
+            <Button variant="gold" style={{ flex: 1 }} onClick={() => { onImport(preview); }} icon={Download}>
+              Import {preview.length}
+            </Button>
+          </div>
+        </>
+      )}
+    </div>
+  );
+}
+
+/* ------------------------------ Mount ------------------------------ */
+/* This file runs standalone (outside the Claude artifact preview), so it
+   needs to explicitly render itself into the page's #root element. */
+ReactDOM.createRoot(document.getElementById("root")).render(<GuestNoteApp />);
