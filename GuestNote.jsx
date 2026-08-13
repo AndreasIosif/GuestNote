@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useMemo, useCallback } from "react";
+import ReactDOM from "react-dom/client";
 import {
   Search, AlertTriangle, Heart, Wine, Armchair, Tag as TagIcon, Users,
   Calendar, Plus, Pencil, X, Check, ChevronLeft, ShieldCheck, ShieldAlert,
@@ -8,9 +9,9 @@ import {
 } from "lucide-react";
 
 /* ---------------------------------------------------------------------- */
-/*  GuestNote — "Know your guests. Before they ask."                      */
+/*  GuestNote â€” "Know your guests. Before they ask."                      */
 /*  Single-file MVP. Data persists via window.storage (personal, per-     */
-/*  browser). No real backend — this is a working front-end prototype     */
+/*  browser). No real backend â€” this is a working front-end prototype     */
 /*  built to the v1 MVP scope.                                            */
 /* ---------------------------------------------------------------------- */
 
@@ -19,7 +20,7 @@ const FONTS = `
 `;
 
 const COLORS = {
-  // Core palette — light cream & warm gold, matching the reference design
+  // Core palette â€” light cream & warm gold, matching the reference design
   bg: "#F7F1E4",
   surface: "#FFFFFF",
   surfaceAlt: "#F1EADA",
@@ -42,7 +43,7 @@ const uid = () => Math.random().toString(36).slice(2, 10);
 const todayISO = () => new Date().toISOString().slice(0, 10);
 
 function formatDate(iso) {
-  if (!iso) return "—";
+  if (!iso) return "â€”";
   const d = new Date(iso + "T00:00:00");
   if (isNaN(d)) return iso;
   return d.toLocaleDateString("en-GB", { day: "numeric", month: "long", year: "numeric" });
@@ -311,8 +312,8 @@ function seedEvents(guests) {
 /* ------------------------------ Brand mark ------------------------------ */
 /* A waiter's hand presenting a cloche-covered dish, napkin over the forearm. */
 
-/* Shield + crown + "G" — the small badge mark used in the header and login. */
-/* Shield + crown + "GN" monogram — the brand mark used on the login screen. */
+/* Shield + crown + "G" â€” the small badge mark used in the header and login. */
+/* Shield + crown + "GN" monogram â€” the brand mark used on the login screen. */
 function ShieldMark({ size = 24, color = "currentColor" }) {
   return (
     <svg width={size} height={size} viewBox="0 0 64 64" fill="none" xmlns="http://www.w3.org/2000/svg">
@@ -370,7 +371,7 @@ function ServiceMark({ size = 24, color = "currentColor" }) {
   );
 }
 
-/* Same waiter mark, drawn as thin outline strokes — for the login-screen backdrop. */
+/* Same waiter mark, drawn as thin outline strokes â€” for the login-screen backdrop. */
 function ServiceMarkOutline({ size = 200, color = "currentColor", opacity = 1 }) {
   return (
     <svg width={size} height={size} viewBox="0 0 64 64" fill="none" xmlns="http://www.w3.org/2000/svg" opacity={opacity}>
@@ -434,9 +435,9 @@ function AllergyTag({ allergen, severity, verified }) {
 
 function DietaryTag({ text, type }) {
   const styles = {
-    vegan: { bg: "#C8E6C9", color: "#2E7D32", label: "🌱" },
-    vegetarian: { bg: "#81C784", color: "#fff", label: "🥬" },
-    pescatarian: { bg: "#81D4FA", color: "#01579B", label: "🐟" },
+    vegan: { bg: "#C8E6C9", color: "#2E7D32", label: "ðŸŒ±" },
+    vegetarian: { bg: "#81C784", color: "#fff", label: "ðŸ¥¬" },
+    pescatarian: { bg: "#81D4FA", color: "#01579B", label: "ðŸŸ" },
   };
   
   const style = styles[type] || styles.vegan;
@@ -602,8 +603,8 @@ function parseQuickAdd(text) {
   const result = { title: "", name: "", allergies: [], preferences: [], serviceNotes: [], dietary: [], drinks: [], leftover: [] };
 
   // Name + title: look for a capitalized run, optionally preceded by a title word
-  const titleRe = new RegExp(`\\b(${TITLE_WORDS.join("|")})\\.?\\s+([A-Z][a-zA-Z'’-]+(?:\\s+[A-Z][a-zA-Z'’-]+)+)`);
-  const nameOnlyRe = /\b([A-Z][a-zA-Z'’-]+(?:\s+[A-Z][a-zA-Z'’-]+)+)/;
+  const titleRe = new RegExp(`\\b(${TITLE_WORDS.join("|")})\\.?\\s+([A-Z][a-zA-Z'â€™-]+(?:\\s+[A-Z][a-zA-Z'â€™-]+)+)`);
+  const nameOnlyRe = /\b([A-Z][a-zA-Z'â€™-]+(?:\s+[A-Z][a-zA-Z'â€™-]+)+)/;
   let m = text.match(titleRe);
   if (m) {
     result.title = m[1] === "Prof" ? "Professor" : m[1];
@@ -657,7 +658,7 @@ function parseQuickAdd(text) {
   }
 
   if (!matchedSomething && result.name) {
-    // Nothing structured found beyond the name — keep the rest as a general note
+    // Nothing structured found beyond the name â€” keep the rest as a general note
     const rest = text.replace(result.name, "").trim();
     if (rest.length > 3) result.leftover.push(rest);
   }
@@ -745,7 +746,7 @@ export default function GuestNoteApp() {
         setAuditLog(a || []);
         setAccounts(ac || []);
       } catch (err) {
-        // storage unavailable — fall back to in-memory demo data
+        // storage unavailable â€” fall back to in-memory demo data
         const seeded = seedGuests();
         setGuests(seeded);
         setEvents(seedEvents(seeded));
@@ -856,7 +857,7 @@ export default function GuestNoteApp() {
         <div style={{ display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", height: "100%", gap: 12, color: COLORS.muted }}>
           <Loader2 className="gn-spin" size={26} />
           <style>{`.gn-spin{animation:spin 1s linear infinite}@keyframes spin{to{transform:rotate(360deg)}}`}</style>
-          <span style={{ fontFamily: "Inter, sans-serif", fontSize: 13.5 }}>Loading GuestNote…</span>
+          <span style={{ fontFamily: "Inter, sans-serif", fontSize: 13.5 }}>Loading GuestNoteâ€¦</span>
         </div>
       </Shell>
     );
@@ -1160,7 +1161,7 @@ function LoginScreen({ accounts, onLogin }) {
         <div style={{ marginTop: 7, marginBottom: 8 }}>
           <TextInput 
             type="password"
-            placeholder="••••••••" 
+            placeholder="â€¢â€¢â€¢â€¢â€¢â€¢â€¢â€¢" 
             value={password} 
             onChange={(e) => { setPassword(e.target.value); setError(""); }}
             onKeyPress={handleKeyPress}
@@ -1342,7 +1343,7 @@ function Dashboard({ guests, allGuests, allCount, query, setQuery, filter, setFi
       <div style={{ position: "relative", marginBottom: 14 }}>
         <Search size={17} color={COLORS.muted} style={{ position: "absolute", left: 15, top: "50%", transform: "translateY(-50%)" }} />
         <TextInput
-          placeholder="Search guests, allergies, preferences…"
+          placeholder="Search guests, allergies, preferencesâ€¦"
           value={query}
           onChange={(e) => setQuery(e.target.value)}
           style={{ paddingLeft: 42, fontSize: 15.5, padding: "13px 14px 13px 42px", borderRadius: 14 }}
@@ -1376,7 +1377,7 @@ function Dashboard({ guests, allGuests, allCount, query, setQuery, filter, setFi
           padding: 16, textAlign: "center", marginBottom: 16, cursor: "pointer",
         }}>
           <Calendar size={18} color={COLORS.muted} style={{ marginBottom: 6 }} />
-          <div style={{ fontSize: 13.5, color: COLORS.muted }}>No event set for tonight — tap to create one.</div>
+          <div style={{ fontSize: 13.5, color: COLORS.muted }}>No event set for tonight â€” tap to create one.</div>
         </div>
       )}
 
@@ -1802,7 +1803,7 @@ function AccountsScreen({ accounts, currentStaffId, onBack, onAdd, onUpdate, onD
         {!editing && <Button size="sm" variant="gold" icon={Plus} onClick={startNew}>Add</Button>}
       </div>
       <p style={{ color: COLORS.muted, fontSize: 12.5, marginBottom: 16, lineHeight: 1.5 }}>
-        Passwords are stored on this device only, for basic access control — not encrypted, and not suitable for sensitive credentials.
+        Passwords are stored on this device only, for basic access control â€” not encrypted, and not suitable for sensitive credentials.
       </p>
 
       {editing && (
@@ -1810,7 +1811,7 @@ function AccountsScreen({ accounts, currentStaffId, onBack, onAdd, onUpdate, onD
           <Field label="Full name"><TextInput autoFocus value={name} onChange={(e) => setName(e.target.value)} placeholder="e.g. Jamie Rivera" /></Field>
           <Field label="Username"><TextInput value={username} onChange={(e) => setUsername(e.target.value)} placeholder="e.g. jamie" /></Field>
           <Field label={editing === "new" ? "Password" : "New password (leave blank to keep current)"}>
-            <TextInput type="password" value={password} onChange={(e) => setPassword(e.target.value)} placeholder="••••••••" />
+            <TextInput type="password" value={password} onChange={(e) => setPassword(e.target.value)} placeholder="â€¢â€¢â€¢â€¢â€¢â€¢â€¢â€¢" />
           </Field>
           <Field label="Role"><Select value={role} onChange={(e) => setRole(e.target.value)} options={ROLES} /></Field>
           {error && <div style={{ color: COLORS.red, fontSize: 12.5, marginBottom: 10 }}>{error}</div>}
@@ -1841,7 +1842,7 @@ function AccountsScreen({ accounts, currentStaffId, onBack, onAdd, onUpdate, onD
                 {acc.name}
                 {acc.id === currentStaffId && <span style={{ fontSize: 10.5, color: COLORS.gold, fontWeight: 700 }}>(You)</span>}
               </div>
-              <div style={{ fontSize: 12, color: COLORS.muted, marginTop: 1 }}>@{acc.username} · {acc.role}</div>
+              <div style={{ fontSize: 12, color: COLORS.muted, marginTop: 1 }}>@{acc.username} Â· {acc.role}</div>
             </div>
             <button onClick={() => startEdit(acc)} style={{ background: "none", border: "none", cursor: "pointer", padding: 6, display: "flex" }}>
               <Pencil size={15} color={COLORS.muted} />
@@ -1968,7 +1969,7 @@ function GuestProfile({ guest, canEdit, canDelete, onBack, onEdit, onSave, onDel
                     <AllergyTag allergen={a.allergen} severity={a.severity} verified={a.verified} />
                     {a.notes && <div style={{ marginTop: 8, fontSize: 13.5, color: "#7A2E23" }}>{a.notes}</div>}
                     <div style={{ marginTop: 6, fontSize: 11, color: "#9A5045", display: "flex", gap: 10 }}>
-                      <span>{a.verified ? "✓ Verified" : "Unverified"}</span>
+                      <span>{a.verified ? "âœ“ Verified" : "Unverified"}</span>
                       <span>Recorded {formatDate(a.dateRecorded)}</span>
                     </div>
                   </div>
@@ -2052,7 +2053,7 @@ function GuestProfile({ guest, canEdit, canDelete, onBack, onEdit, onSave, onDel
 
       <div style={{ borderTop: `1px solid ${COLORS.border}`, paddingTop: 14, marginTop: 6 }}>
         <div style={{ fontSize: 12, color: COLORS.muted, marginBottom: 12 }}>
-          Last updated {formatDate(guest.updatedAt?.slice(0, 10))} · Updated by {guest.updatedBy}
+          Last updated {formatDate(guest.updatedAt?.slice(0, 10))} Â· Updated by {guest.updatedBy}
         </div>
         <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
           {canEdit && <Button size="sm" variant="outline" icon={Sparkles} onClick={() => setAdding("quickUpdate")}>Quick Update</Button>}
@@ -2117,7 +2118,7 @@ function AuditRow({ entry }) {
     <div style={{ fontSize: 12.5, borderLeft: `2px solid ${COLORS.border}`, paddingLeft: 10 }}>
       <div style={{ color: COLORS.text, fontWeight: 600 }}>{entry.action}</div>
       <div style={{ color: COLORS.muted }}>{entry.detail}</div>
-      <div style={{ color: COLORS.muted, marginTop: 2 }}>{new Date(entry.timestamp).toLocaleString("en-GB")} · {entry.staff}</div>
+      <div style={{ color: COLORS.muted, marginTop: 2 }}>{new Date(entry.timestamp).toLocaleString("en-GB")} Â· {entry.staff}</div>
     </div>
   );
 }
@@ -2205,7 +2206,7 @@ function QuickUpdateModal({ guest, onClose, onSave }) {
     if (preview.mode === "replace") {
       const field = preview.target.field;
       next[field] = guest[field].map((x) => (x.id === preview.target.id ? { ...x, text: preview.newText } : x));
-      detail = `${preview.target.text} → ${preview.newText}`;
+      detail = `${preview.target.text} â†’ ${preview.newText}`;
     } else {
       next.notes = [...guest.notes, { id: uid(), text: preview.newText }];
       detail = preview.newText;
@@ -2496,7 +2497,7 @@ function QuickAdd({ onCancel, onSave, onDuplicateCheck, onOpenExisting, guests }
               I understood
             </div>
             <div style={{ fontFamily: "Fraunces, serif", fontSize: 18, marginBottom: 12 }}>
-              Guest: {parsed.title} {parsed.name || <span style={{ color: COLORS.red }}>Not detected — please edit</span>}
+              Guest: {parsed.title} {parsed.name || <span style={{ color: COLORS.red }}>Not detected â€” please edit</span>}
             </div>
             {parsed.allergies.map((a, i) => (
               <ParsedLine key={i} icon={AlertTriangle} tone="red" label="Allergy" text={a} />
@@ -2507,7 +2508,7 @@ function QuickAdd({ onCancel, onSave, onDuplicateCheck, onOpenExisting, guests }
             {parsed.serviceNotes.map((a, i) => <ParsedLine key={i} icon={Armchair} tone="gold" label="Service instruction" text={a} />)}
             {parsed.leftover.map((a, i) => <ParsedLine key={i} icon={StickyNote} label="Note" text={a} />)}
             {!parsed.allergies.length && !parsed.preferences.length && !parsed.drinks.length && !parsed.serviceNotes.length && !parsed.dietary.length && !parsed.leftover.length && (
-              <MutedLine text="No structured details detected beyond the name — you can add details after saving." />
+              <MutedLine text="No structured details detected beyond the name â€” you can add details after saving." />
             )}
           </div>
 
@@ -2517,7 +2518,7 @@ function QuickAdd({ onCancel, onSave, onDuplicateCheck, onOpenExisting, guests }
               <div style={{ fontSize: 14, marginBottom: 10 }}>{dup.title} {dup.name}</div>
               {parsed.allergies.length > 0 && dup.allergies.length > 0 && (
                 <div style={{ fontSize: 12.5, color: "#7A5A18", marginBottom: 10 }}>
-                  This guest already has allergy information on file. It will not be overwritten — new allergies are added alongside it.
+                  This guest already has allergy information on file. It will not be overwritten â€” new allergies are added alongside it.
                 </div>
               )}
               <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
@@ -2602,8 +2603,8 @@ function EventsScreen({ events, guests, onBack, onOpenEvent, onCreateEvent }) {
                   <div>
                     <div style={{ fontFamily: "Fraunces, serif", fontSize: 17, fontWeight: 500 }}>{ev.name}</div>
                     <div style={{ fontSize: 12.5, color: COLORS.muted, marginTop: 3 }}>
-                      {formatDate(ev.date)} · {attendees.length} guests
-                      {allergyCount > 0 && <span style={{ color: COLORS.red }}> · {allergyCount} with allergies</span>}
+                      {formatDate(ev.date)} Â· {attendees.length} guests
+                      {allergyCount > 0 && <span style={{ color: COLORS.red }}> Â· {allergyCount} with allergies</span>}
                     </div>
                   </div>
                   <ChevronRight size={16} color={COLORS.muted} />
@@ -2639,7 +2640,7 @@ function EventDetail({ event, guests, onBack, onUpdate, onOpenGuest, onBriefing 
         <ChevronLeft size={16} /> Events
       </button>
       <h2 style={{ fontFamily: "Fraunces, serif", fontWeight: 500, fontSize: 22, margin: "0 0 4px" }}>{event.name}</h2>
-      <div style={{ color: COLORS.muted, fontSize: 13.5, marginBottom: 16 }}>{formatDate(event.date)} · {attendees.length} guests</div>
+      <div style={{ color: COLORS.muted, fontSize: 13.5, marginBottom: 16 }}>{formatDate(event.date)} Â· {attendees.length} guests</div>
 
       <div style={{ display: "flex", gap: 8, marginBottom: 18, flexWrap: "wrap" }}>
         <Pill tone="red"><AlertTriangle size={11} /> {allergyCount} with allergies</Pill>
@@ -2664,7 +2665,7 @@ function EventDetail({ event, guests, onBack, onUpdate, onOpenGuest, onBriefing 
 
       {adding && (
         <div style={{ marginBottom: 12 }}>
-          <TextInput placeholder="Search guests to add…" value={search} onChange={(e) => setSearch(e.target.value)} style={{ marginBottom: 8 }} autoFocus />
+          <TextInput placeholder="Search guests to addâ€¦" value={search} onChange={(e) => setSearch(e.target.value)} style={{ marginBottom: 8 }} autoFocus />
           <div style={{ maxHeight: 220, overflowY: "auto", border: `1px solid ${COLORS.border}`, borderRadius: 12 }}>
             {available.slice(0, 20).map((g) => (
               <div key={g.id} onClick={() => addGuestToEvent(g)} style={{ padding: "10px 12px", borderBottom: `1px solid ${COLORS.border}`, cursor: "pointer", fontSize: 14, display: "flex", justifyContent: "space-between", alignItems: "center" }}>
@@ -2732,19 +2733,19 @@ function ServiceBriefing({ event, guests, onBack }) {
         </head>
         <body>
           <h1>${event.name}</h1>
-          <div class="meta">${formatDate(event.date)} · ${attendees.length} guests · Safety First</div>
+          <div class="meta">${formatDate(event.date)} Â· ${attendees.length} guests Â· Safety First</div>
           ${attendees.map((x) => {
             const g = x.guest;
             const hasAllergy = g.allergies.length > 0;
             return `
               <div class="guest ${hasAllergy ? 'allergy' : ''}">
-                <div class="table">Table ${x.table || '—'}</div>
-                <div class="name">${g.title} ${g.name}${g.vip ? ' ⭐' : ''}</div>
-                ${g.allergies.map((a) => `<div class="allergy">⚠️ ${a.allergen.toUpperCase()} (${a.severity})</div>`).join('')}
-                ${g.dietary.map((d) => `<div class="dietary">🥗 ${d.text}</div>`).join('')}
-                ${g.serviceNotes.map((s) => `<div class="note">→ ${s.text}</div>`).join('')}
-                ${g.preferences.map((p) => `<div class="note">❤️ ${p.text}</div>`).join('')}
-                ${g.drinks.map((d) => `<div class="note">🍷 ${d.text}</div>`).join('')}
+                <div class="table">Table ${x.table || 'â€”'}</div>
+                <div class="name">${g.title} ${g.name}${g.vip ? ' â­' : ''}</div>
+                ${g.allergies.map((a) => `<div class="allergy">âš ï¸ ${a.allergen.toUpperCase()} (${a.severity})</div>`).join('')}
+                ${g.dietary.map((d) => `<div class="dietary">ðŸ¥— ${d.text}</div>`).join('')}
+                ${g.serviceNotes.map((s) => `<div class="note">â†’ ${s.text}</div>`).join('')}
+                ${g.preferences.map((p) => `<div class="note">â¤ï¸ ${p.text}</div>`).join('')}
+                ${g.drinks.map((d) => `<div class="note">ðŸ· ${d.text}</div>`).join('')}
               </div>
             `;
           }).join('')}
@@ -2772,7 +2773,7 @@ function ServiceBriefing({ event, guests, onBack }) {
       <div style={{ marginBottom: 18 }}>
         <div style={{ fontSize: 11.5, fontFamily: "IBM Plex Mono, monospace", letterSpacing: 1.4, color: COLORS.gold, textTransform: "uppercase" }}>Service Briefing</div>
         <h2 style={{ fontFamily: "Fraunces, serif", fontWeight: 500, fontSize: 24, margin: "4px 0" }}>{event.name}</h2>
-        <div style={{ color: COLORS.muted, fontSize: 13.5 }}>{formatDate(event.date)} · {attendees.length} guests · safety first</div>
+        <div style={{ color: COLORS.muted, fontSize: 13.5 }}>{formatDate(event.date)} Â· {attendees.length} guests Â· safety first</div>
       </div>
 
       <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
@@ -2786,26 +2787,26 @@ function ServiceBriefing({ event, guests, onBack }) {
               borderRadius: 16, padding: "14px 16px",
             }}>
               <div style={{ fontSize: 11, fontFamily: "IBM Plex Mono, monospace", letterSpacing: 1, color: COLORS.muted, textTransform: "uppercase", marginBottom: 4 }}>
-                Table {x.table || "—"}
+                Table {x.table || "â€”"}
               </div>
               <div style={{ fontFamily: "Fraunces, serif", fontSize: 17.5, fontWeight: 500, marginBottom: 6 }}>{g.title} {g.name}{g.vip && <Star size={12} color={COLORS.gold} fill={COLORS.gold} style={{ marginLeft: 6, marginBottom: 1 }} />}</div>
               {g.allergies.map((a) => (
                 <div key={a.id} style={{ marginBottom: 5 }}><AllergyTag allergen={a.allergen} severity={a.severity} verified={a.verified} /></div>
               ))}
               {g.dietary.map((d) => (
-                <div key={d.id} style={{ fontSize: 13.5, color: COLORS.green, marginBottom: 3 }}>🥗 {d.text}</div>
+                <div key={d.id} style={{ fontSize: 13.5, color: COLORS.green, marginBottom: 3 }}>ðŸ¥— {d.text}</div>
               ))}
               {g.serviceNotes.map((s) => (
-                <div key={s.id} style={{ fontSize: 13.5, marginBottom: 3 }}>→ {s.text}</div>
+                <div key={s.id} style={{ fontSize: 13.5, marginBottom: 3 }}>â†’ {s.text}</div>
               ))}
               {g.tablePreferences.map((s) => (
-                <div key={s.id} style={{ fontSize: 13.5, marginBottom: 3 }}>🪑 {s.text}</div>
+                <div key={s.id} style={{ fontSize: 13.5, marginBottom: 3 }}>ðŸª‘ {s.text}</div>
               ))}
               {g.preferences.map((p) => (
-                <div key={p.id} style={{ fontSize: 13.5, marginBottom: 3 }}>❤️ {p.text}</div>
+                <div key={p.id} style={{ fontSize: 13.5, marginBottom: 3 }}>â¤ï¸ {p.text}</div>
               ))}
               {g.drinks.map((d) => (
-                <div key={d.id} style={{ fontSize: 13.5, marginBottom: 3 }}>🍷 {d.text}</div>
+                <div key={d.id} style={{ fontSize: 13.5, marginBottom: 3 }}>ðŸ· {d.text}</div>
               ))}
             </div>
           );
@@ -2813,7 +2814,7 @@ function ServiceBriefing({ event, guests, onBack }) {
       </div>
 
       <div style={{ marginTop: 20, fontSize: 12, color: COLORS.muted, lineHeight: 1.6, borderTop: `1px solid ${COLORS.border}`, paddingTop: 14 }}>
-        This briefing assists service staff. It does not replace standard kitchen allergen verification and safety procedures — always confirm severe allergies directly with the guest and kitchen.
+        This briefing assists service staff. It does not replace standard kitchen allergen verification and safety procedures â€” always confirm severe allergies directly with the guest and kitchen.
       </div>
     </div>
   );
@@ -2842,7 +2843,7 @@ function AuditLogScreen({ auditLog, onBack }) {
               </div>
               <div style={{ fontSize: 13, color: COLORS.gold, fontWeight: 600, marginTop: 2 }}>{entry.action}</div>
               <div style={{ fontSize: 13, color: COLORS.muted, marginTop: 2 }}>{entry.detail}</div>
-              <div style={{ fontSize: 11.5, color: COLORS.muted, marginTop: 6 }}>{new Date(entry.timestamp).toLocaleString("en-GB")} · {entry.staff}</div>
+              <div style={{ fontSize: 11.5, color: COLORS.muted, marginTop: 6 }}>{new Date(entry.timestamp).toLocaleString("en-GB")} Â· {entry.staff}</div>
             </div>
           ))}
       </div>
@@ -2981,7 +2982,7 @@ function CSVImportScreen({ guests, onImport, onBack }) {
           <Field label="CSV data">
             <TextArea rows={8} value={csvText} onChange={(e) => setCsvText(e.target.value)} placeholder="name,title,allergy,dietary&#10;John Doe,Mr,Cheese,Vegetarian" />
           </Field>
-          {error && <div style={{ color: COLORS.red, fontSize: 13, marginBottom: 14 }}>⚠️ {error}</div>}
+          {error && <div style={{ color: COLORS.red, fontSize: 13, marginBottom: 14 }}>âš ï¸ {error}</div>}
           <Button variant="gold" style={{ width: "100%" }} onClick={parseCSV}>Parse CSV</Button>
         </>
       ) : (
@@ -2992,7 +2993,7 @@ function CSVImportScreen({ guests, onImport, onBack }) {
               {preview.map((g) => (
                 <div key={g.id} style={{ fontSize: 12.5, padding: "6px 8px", background: COLORS.surfaceAlt, borderRadius: 8 }}>
                   <strong>{g.title} {g.name}</strong>
-                  {g.allergies.length > 0 && <div style={{ color: COLORS.red }}>⚠️ {g.allergies.map((a) => a.allergen).join(", ")}</div>}
+                  {g.allergies.length > 0 && <div style={{ color: COLORS.red }}>âš ï¸ {g.allergies.map((a) => a.allergen).join(", ")}</div>}
                 </div>
               ))}
             </div>
@@ -3008,3 +3009,8 @@ function CSVImportScreen({ guests, onImport, onBack }) {
     </div>
   );
 }
+
+/* ------------------------------ Mount ------------------------------ */
+/* This file runs standalone (outside the Claude artifact preview), so it
+   needs to explicitly render itself into the page's #root element. */
+ReactDOM.createRoot(document.getElementById("root")).render(<GuestNoteApp />);
