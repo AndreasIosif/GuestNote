@@ -1,4 +1,3 @@
- 
 import React, { useState, useEffect, useMemo, useCallback } from "react";
 import ReactDOM from "react-dom/client";
 import {
@@ -315,23 +314,26 @@ function seedEvents(guests) {
 
 /* Shield + crown + "G" - the small badge mark used in the header and login. */
 /* Shield + crown + "GN" monogram - the brand mark used on the login screen. */
-function ShieldMark({ size = 24, color = "currentColor" }) {
+function ShieldMark({ size = 24, color = "currentColor", crownColor, bg = "none" }) {
+  const crown = crownColor || color;
   return (
-    <svg width={size} height={size} viewBox="0 0 64 64" fill="none" xmlns="http://www.w3.org/2000/svg">
+    <svg width={size} height={size} viewBox="0 0 64 64" xmlns="http://www.w3.org/2000/svg">
+      {bg !== "none" && <rect width="64" height="64" rx="14" fill={bg} />}
+      {/* solid filled shield */}
       <path
-        d="M32,4 L52,11 V29 C52,42.5 43.5,52.5 32,58 C20.5,52.5 12,42.5 12,29 V11 Z"
-        stroke={color} strokeWidth="2.4" fill="none" strokeLinejoin="round"
-      />
-      {/* crown */}
-      <path
-        d="M24,14 L27,18 L32,11 L37,18 L40,14 L38.5,22 H25.5 Z"
+        d="M32,6 L50,12.5 V29 C50,41 42.5,50 32,55 C21.5,50 14,41 14,29 V12.5 Z"
         fill={color}
       />
-      {/* "GN" monogram */}
+      {/* bold crown, cut in contrasting colour */}
+      <path
+        d="M21,20 L26,25 L32,15 L38,25 L43,20 L41,32 H23 Z"
+        fill={crown}
+      />
+      {/* bold "GN" monogram */}
       <text
-        x="32" y="43" textAnchor="middle"
-        fontFamily="Fraunces, serif" fontWeight="700" fontSize="17" letterSpacing="-0.5"
-        fill={color}
+        x="32" y="46" textAnchor="middle"
+        fontFamily="Arial, sans-serif" fontWeight="800" fontSize="15" letterSpacing="0.5"
+        fill={crown}
       >GN</text>
     </svg>
   );
@@ -1136,7 +1138,7 @@ function LoginScreen({ accounts, onLogin }) {
         <div style={{
           width: 60, height: 60, display: "flex", alignItems: "center", justifyContent: "center", margin: "0 auto 16px",
         }}>
-          <ShieldMark size={52} color={COLORS.gold} />
+          <ShieldMark size={52} color={COLORS.gold} crownColor={COLORS.text} />
         </div>
         <h1 style={{ fontFamily: "Fraunces, serif", fontWeight: 600, fontSize: 44, margin: "0 0 10px", color: COLORS.text }}>Guest</h1>
         <div style={{ width: 34, height: 2, background: COLORS.gold, margin: "0 auto 14px" }} />
