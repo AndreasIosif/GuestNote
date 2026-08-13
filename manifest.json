@@ -1,0 +1,65 @@
+{
+  "name": "GuestNote - Guest Preference Manager",
+  "short_name": "GuestNote",
+  "description": "Know your guests. Before they ask. Premium guest preference & allergy management for hospitality venues.",
+  "start_url": "/",
+  "scope": "/",
+  "display": "standalone",
+  "orientation": "portrait-primary",
+  "background_color": "#F7F1E4",
+  "theme_color": "#2C2417",
+  "icons": [
+    {
+      "src": "data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 192 192'><rect fill='%232C2417' width='192' height='192'/><g transform='translate(96.0,96.0) scale(2.6) translate(-38,-36)'><path d='M26,37 C29,41 35,45 41,49 C47,53 53,57 59,60 L62,55.5 C56,51.5 49,46.5 43,42 C37,37.5 32,34 28,32.5 Z' fill='%23B08D4F' opacity='0.82'/><path d='M43,45 C39,49 35.5,54.5 37,59.5 C38.3,63.5 44,62.5 46.5,58.5 C48.3,55.7 47,50 43,45 Z' fill='%23B08D4F' opacity='0.68'/><ellipse cx='26.5' cy='36.5' rx='9.2' ry='5.2' fill='%23B08D4F'/><ellipse cx='18.3' cy='32.6' rx='2.1' ry='3.6' fill='%23B08D4F' transform='rotate(-14 18.3 32.6)'/><ellipse cx='22.6' cy='30.7' rx='2.2' ry='4' fill='%23B08D4F' transform='rotate(-6 22.6 30.7)'/><ellipse cx='27.4' cy='30.1' rx='2.3' ry='4.1' fill='%23B08D4F'/><ellipse cx='32.1' cy='30.8' rx='2.2' ry='3.9' fill='%23B08D4F' transform='rotate(8 32.1 30.8)'/><ellipse cx='35.9' cy='33.6' rx='2.3' ry='3.7' fill='%23B08D4F' transform='rotate(28 35.9 33.6)'/><ellipse cx='29.5' cy='29.5' rx='15' ry='3.1' fill='%23B08D4F'/><path d='M14.5,29.5 A15,15.5 0 0 1 44.5,29.5 Z' fill='%23B08D4F'/><rect x='28.4' y='12.5' width='2.2' height='3.5' fill='%23B08D4F'/><circle cx='29.5' cy='11' r='2.3' fill='%23B08D4F'/></g></svg>",
+      "sizes": "192x192",
+      "type": "image/svg+xml",
+      "purpose": "any"
+    },
+    {
+      "src": "data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 512 512'><rect fill='%232C2417' width='512' height='512'/><g transform='translate(256.0,256.0) scale(7.0) translate(-38,-36)'><path d='M26,37 C29,41 35,45 41,49 C47,53 53,57 59,60 L62,55.5 C56,51.5 49,46.5 43,42 C37,37.5 32,34 28,32.5 Z' fill='%23B08D4F' opacity='0.82'/><path d='M43,45 C39,49 35.5,54.5 37,59.5 C38.3,63.5 44,62.5 46.5,58.5 C48.3,55.7 47,50 43,45 Z' fill='%23B08D4F' opacity='0.68'/><ellipse cx='26.5' cy='36.5' rx='9.2' ry='5.2' fill='%23B08D4F'/><ellipse cx='18.3' cy='32.6' rx='2.1' ry='3.6' fill='%23B08D4F' transform='rotate(-14 18.3 32.6)'/><ellipse cx='22.6' cy='30.7' rx='2.2' ry='4' fill='%23B08D4F' transform='rotate(-6 22.6 30.7)'/><ellipse cx='27.4' cy='30.1' rx='2.3' ry='4.1' fill='%23B08D4F'/><ellipse cx='32.1' cy='30.8' rx='2.2' ry='3.9' fill='%23B08D4F' transform='rotate(8 32.1 30.8)'/><ellipse cx='35.9' cy='33.6' rx='2.3' ry='3.7' fill='%23B08D4F' transform='rotate(28 35.9 33.6)'/><ellipse cx='29.5' cy='29.5' rx='15' ry='3.1' fill='%23B08D4F'/><path d='M14.5,29.5 A15,15.5 0 0 1 44.5,29.5 Z' fill='%23B08D4F'/><rect x='28.4' y='12.5' width='2.2' height='3.5' fill='%23B08D4F'/><circle cx='29.5' cy='11' r='2.3' fill='%23B08D4F'/></g></svg>",
+      "sizes": "512x512",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    }
+  ],
+  "categories": [
+    "business",
+    "productivity"
+  ],
+  "screenshots": [
+    {
+      "src": "data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 540 720'><rect fill='%23F7F1E4' width='540' height='720'/><rect fill='%232C2417' width='540' height='80'/><text x='20' y='50' font-family='system-ui' font-size='24' font-weight='bold' fill='%23F7F1E4'>GuestNote</text></svg>",
+      "sizes": "540x720",
+      "type": "image/svg+xml",
+      "form_factor": "narrow"
+    }
+  ],
+  "shortcuts": [
+    {
+      "name": "Add Guest",
+      "short_name": "Add",
+      "description": "Quickly add a new guest",
+      "url": "/?action=add",
+      "icons": [
+        {
+          "src": "data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 192 192'><rect fill='%23B08D4F' width='192' height='192'/><text x='50%' y='50%' dominant-baseline='middle' text-anchor='middle' font-family='system-ui' font-size='100' font-weight='bold' fill='%232C2417'>+</text></svg>",
+          "sizes": "192x192",
+          "type": "image/svg+xml"
+        }
+      ]
+    },
+    {
+      "name": "View Guests",
+      "short_name": "Guests",
+      "description": "View all guests",
+      "url": "/?action=dashboard",
+      "icons": [
+        {
+          "src": "data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 192 192'><rect fill='%23B08D4F' width='192' height='192'/><text x='50%' y='50%' dominant-baseline='middle' text-anchor='middle' font-family='system-ui' font-size='80' font-weight='bold' fill='%232C2417'>&#128101;</text></svg>",
+          "sizes": "192x192",
+          "type": "image/svg+xml"
+        }
+      ]
+    }
+  ]
+}
